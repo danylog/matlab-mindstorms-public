@@ -1,0 +1,66 @@
+brickObj = EV3();
+brickObj.connect('usb');
+
+brickObj.beep();
+
+xAxisMotor = brickObj.motorA;
+yAxisMotor = brickObj.motorD;
+tastsensor = brickObj.sensor1;
+lichtsensor = brickObj.sensor2;
+
+xAxisMotor.power = 30;
+xAxisMotor.limitMode = 'Tacho';
+xAxisMotor.brakeMode = 'Brake';
+
+yAxisMotor.power = 30;
+yAxisMotor.limitMode = 'Tacho';
+yAxisMotor.brakeMode = 'Brake';
+
+penMotor.power = 30;
+yAxisMotor.limitMode = 'Tacho';
+yAxisMotor.brakeMode = 'Brake';
+
+
+%xDegreesPerCm = 100; 
+%yDegreesPerCm = 83.721; 
+
+%value = tastsensor.value;
+%lichtsensor.mode =DeviceMode.Color.Col;
+%value = lichtsensor.value;
+
+penMotor.power = 20;
+penMotor.limitValue = 45;  % Adjust angle as needed
+penMotor.start();
+penMotor.waitFor();
+penMotor.stop();
+
+
+penMotor.power = -20;
+penMotor.limitValue = 45;  % Adjust angle as needed
+penMotor.start();
+penMotor.waitFor();
+penMotorn.stop();
+
+
+
+%{
+Bewegungen = [200 200 -100 -100];
+
+for count = 1:(numel(Bewegungen))/2
+    xAxisMotor.limitValue = Bewegungen(count * 2);
+    yAxisMotor.limitValue = Bewegungen(count * 2 - 1);
+
+    xAxisMotor.start();
+    xAxisMotor.waitFor();
+    yAxisMotor.start();
+    yAxisMotor.waitFor();
+    
+    xAxisMotor.resetTachoCount();
+    yAxisMotor.resetTachoCount();
+
+    disp(count);
+end
+%}
+yAxisMotor.waitFor();
+brickObj.disconnect();
+
