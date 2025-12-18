@@ -1,16 +1,11 @@
 function plotterCanvas()
-% PLOTTERCANVAS - Drawing GUI for the plotter
-% Draw with mouse, export points for motor control
 
-    % Create figure - sized to fit 150x290 canvas with 1:1 aspect ratio
     fig = figure('Name', 'Plotter Canvas', ...
                  'NumberTitle', 'off', ...
                  'Position', [50, 50, 650, 850], ...
                  'Color', 'white', ...
-                 'Resize', 'off');  % Disable resize to preserve aspect ratio
-    
-    % Create axes for drawing with fixed 1:1 aspect ratio
-    % Canvas: 150x290 units, displayed at 2 pixels per unit = 300x580 pixels
+                 'Resize', 'off');  
+ 
     ax = axes('Parent', fig, ...
               'Units', 'pixels', ...
               'Position', [50, 60, 300, 580], ...
@@ -21,7 +16,7 @@ function plotterCanvas()
               'YTick', 0:50:290, ...
               'GridLineStyle', '-', ...
               'GridAlpha', 0.3);
-    axis equal;  % Force 1:1 aspect ratio
+    axis equal; 
     xlim([0 150]);
     ylim([0 290]);
     grid on;
@@ -29,88 +24,79 @@ function plotterCanvas()
     xlabel('X (mm)');
     ylabel('Y (mm)');
     
-    % Load and display overlay image in top area of GUI (above canvas)
+   
     overlayFile = fullfile(fileparts(mfilename('fullpath')), 'overlay.png');
     if exist(overlayFile, 'file')
         try
             img = imread(overlayFile);
-            % Create axes for the image in the top area (above canvas, y=660 to y=840)
+           
             imgAx = axes('Parent', fig, ...
                          'Units', 'pixels', ...
                          'Position', [50, 660, 300, 180], ...
                          'Visible', 'off');
             image(imgAx, img);
-            axis(imgAx, 'image');  % Preserve aspect ratio
-            set(imgAx, 'XTick', [], 'YTick', []);  % Hide ticks
+            axis(imgAx, 'image');  
+            set(imgAx, 'XTick', [], 'YTick', []);  
         catch
             warning('Could not load overlay.png');
         end
     end
     
-    % Store drawing data in figure's UserData
+    
     data = struct();
-    data.strokes = {};          % Cell array of strokes
-    data.currentStroke = [];    % Current stroke being drawn
-    data.isDrawing = false;     % Flag: mouse button down?
+    data.strokes = {};          
+    data.currentStroke = [];    
+    data.isDrawing = false;     
     data.ax = ax;
     
-    % Plotter configuration
-    data.ev3 = [];              % EV3 connection
-    data.motorX = [];           % X-axis motor
-    data.motorY = [];           % Y-axis motor
-    data.motorPen = [];         % Pen up/down motor (optional)
-    data.touchSensor = [];      % Touch sensor on X stopper
-    data.lightSensor = [];      % Light sensor for Y paper edge
+    data.ev3 = [];              
+    data.motorX = [];           
+    data.motorY = [];           
+    data.motorPen = [];         
+    data.touchSensor = [];      
+    data.lightSensor = [];      
     data.isConnected = false;
     
-    % Calibration: tacho degrees per cm
     data.xDegreesPerCm = 100.000;
     data.yDegreesPerCm = 83.721;
     
-    % Axis direction (reversed: -1)
-    data.xDirection = 1;       % Reversed X axis
-    data.yDirection = -1;       % Reversed Y axis
+    data.xDirection = 1;       
+    data.yDirection = -1;       
     
-    % Canvas size in cm (what 0-150/0-290 maps to)
-    data.canvasWidthCm = 15;    % 150 units = 15 cm
-    data.canvasHeightCm = 29;   % 290 units = 29 cm
-    data.canvasMaxX = 150;      % Max X coordinate
-    data.canvasMaxY = 290;      % Max Y coordinate
+    data.canvasWidthCm = 15;    
+    data.canvasHeightCm = 29;   
+    data.canvasMaxX = 150;     
+    data.canvasMaxY = 290;     
     
-    % Motor power
     data.drawSpeed = 50;
     data.moveSpeed = 80;
-    data.jogDistance = 10;      % Manual jog distance in units
+    data.jogDistance = 10;      
     
-    % Axis speed multipliers for diagonal calibration
+   
     data.xSpeedMultiplier = 1.0;
     data.ySpeedMultiplier = 1.0;
     
-    % Pen state (true = down, false = up)
+   
     data.penIsDown = false;
     
-    % Debug mode
+   
     data.debugMode = false;
     
-    % Overlay image handle
     data.overlayImage = [];
     
-    % Plotting control flags
+  
     data.isPaused = false;
     data.isStopped = false;
     data.isPlotting = false;
     
-    % Text placement mode
     data.textPlacementMode = false;
     
     fig.UserData = data;
     
-    % Button column starts at x=380
     btnX = 380;
     btnW = 120;
     btnH = 30;
     
-    % Paper controls (top)
     uicontrol('Parent', fig, ...
               'Style', 'pushbutton', ...
               'String', 'Load Paper', ...
@@ -123,7 +109,6 @@ function plotterCanvas()
               'Position', [btnX+130, 760, btnW, btnH], ...
               'Callback', @unloadPaper);
     
-    % Drawing controls
     uicontrol('Parent', fig, ...
               'Style', 'pushbutton', ...
               'String', 'Clear', ...
@@ -148,7 +133,6 @@ function plotterCanvas()
               'Position', [btnX+btnW+10, 685, btnW, btnH], ...
               'Callback', @loadDrawing);
     
-    % Plotter controls section
     uicontrol('Parent', fig, ...
               'Style', 'text', ...
               'String', '--- Plotter ---', ...
@@ -1246,11 +1230,9 @@ function moveToAbsolutePosition(data, targetX, targetY, speed)
         return;  % No movement needed
     end
     
-    % Apply axis speed multipliers for calibration
     xSpeedMult = data.xSpeedMultiplier;
     ySpeedMult = data.ySpeedMultiplier;
     
-    % Calculate synchronized speeds so both motors finish at the same time
     if absXtacho == 0
         speedX = 0;
         speedY = speed * ySpeedMult;
@@ -1267,11 +1249,9 @@ function moveToAbsolutePosition(data, targetX, targetY, speed)
         speedX = max(speedX, 10);
     end
     
-    % Clamp speeds to valid range
     speedX = min(max(round(speedX), 0), 100);
     speedY = min(max(round(speedY), 0), 100);
     
-    % Set motor powers based on delta direction
     if deltaXtacho >= 0
         data.motorX.power = speedX;
     else
@@ -1284,11 +1264,9 @@ function moveToAbsolutePosition(data, targetX, targetY, speed)
         data.motorY.power = -speedY;
     end
     
-    % Set limits (always positive)
     data.motorX.limitValue = absXtacho;
     data.motorY.limitValue = absYtacho;
     
-    % Start both motors together
     if absXtacho > 0
         data.motorX.start();
     end
@@ -1296,7 +1274,6 @@ function moveToAbsolutePosition(data, targetX, targetY, speed)
         data.motorY.start();
     end
     
-    % Wait for both to finish
     if absXtacho > 0
         data.motorX.waitFor();
     end
@@ -1341,7 +1318,7 @@ function penDown(data, fig)
     
     % Check if already down
     if data.penIsDown
-        return;  % Already down, do nothing
+        return;  
     end
     
     data.motorPen.power = -20;
@@ -1388,7 +1365,6 @@ function jogMotor(src, ~, axis, direction)
     
     if axis == 'X'
         distDeg = round(distCm * data.xDegreesPerCm);
-        % direction already accounts for canvas direction, xDirection for motor
         data.motorX.power = direction * data.moveSpeed * data.xDirection;
         data.motorX.limitValue = distDeg;
         data.motorX.start();
@@ -1397,7 +1373,6 @@ function jogMotor(src, ~, axis, direction)
         disp(['Jogged X ' num2str(direction * data.jogDistance) ' units | Tacho: ' num2str(data.motorX.tachoCount)]);
     else
         distDeg = round(distCm * data.yDegreesPerCm);
-        % direction already accounts for canvas direction, yDirection for motor
         data.motorY.power = direction * data.moveSpeed * data.yDirection;
         data.motorY.limitValue = distDeg;
         data.motorY.start();
@@ -1439,7 +1414,6 @@ function enableTextPlacement(src, ~)
     fig = ancestor(src, 'figure');
     data = fig.UserData;
     
-    % Toggle text placement mode
     data.textPlacementMode = ~data.textPlacementMode;
     fig.UserData = data;
     
@@ -1459,15 +1433,12 @@ function addTextToCanvas(src, ~)
     fig = ancestor(src, 'figure');
     data = fig.UserData;
     
-    % Check autoposition toggle
     autoToggle = findobj(fig, 'Tag', 'autoPositionToggle');
     autoPosition = get(autoToggle, 'Value') == 1;
     
     if autoPosition
-        % Auto-center text on canvas
         placeTextAuto(fig);
     else
-        % Enable click-to-place mode
         enableTextPlacement(src, []);
     end
 end
@@ -1482,7 +1453,6 @@ function placeTextAuto(fig)
     textContent = get(textInput, 'String');
     fontSize = str2double(get(fontSizeInput, 'String'));
     
-    % textContent is a 2D char array: rows = lines, cols = max length (padded)
     if isempty(textContent) || (ischar(textContent) && isempty(strtrim(textContent)))
         disp('No text entered!');
         return;
@@ -1493,15 +1463,14 @@ function placeTextAuto(fig)
         disp('Invalid font size, using default 15');
     end
     
-    % Calculate text dimensions for centering
+    
     charWidth = fontSize * 0.6;
     spacing = 1.2;
     lineSpacing = 1.5;
     
-    % Get dimensions from 2D char array
+    
     if ischar(textContent)
         numLines = size(textContent, 1);
-        % Find actual max width (not counting trailing spaces)
         maxChars = 0;
         for r = 1:numLines
             lineLen = length(strtrim(textContent(r, :)));
@@ -1522,9 +1491,8 @@ function placeTextAuto(fig)
     canvasHeight = ylims(2) - ylims(1);
     
     x = (canvasWidth - textWidth) / 2 + xlims(1);
-    y = (canvasHeight + textHeight) / 2 + ylims(1);  % Top of text
+    y = (canvasHeight + textHeight) / 2 + ylims(1); 
     
-    % Generate strokes using text engine (pass 2D char array directly)
     try
         textStrokes = textEngine(textContent, x, y, fontSize, spacing, lineSpacing);
     catch err
@@ -1552,14 +1520,12 @@ function placeTextAtClick(fig)
         return;
     end
     
-    % Get text and font size from inputs
     textInput = findobj(fig, 'Tag', 'textInput');
     fontSizeInput = findobj(fig, 'Tag', 'fontSizeInput');
     
     textContent = get(textInput, 'String');
     fontSize = str2double(get(fontSizeInput, 'String'));
     
-    % textContent is a 2D char array from multiline edit
     if isempty(textContent) || (ischar(textContent) && isempty(strtrim(textContent)))
         disp('No text entered!');
         return;
@@ -1570,7 +1536,6 @@ function placeTextAtClick(fig)
         disp('Invalid font size, using default 15');
     end
     
-    % Generate strokes using text engine (y is top of text)
     try
         textStrokes = textEngine(textContent, x, y, fontSize);
     catch err
@@ -1580,7 +1545,6 @@ function placeTextAtClick(fig)
     
     addTextStrokesToCanvas(fig, textStrokes, x, y);
     
-    % Disable text placement mode
     data = fig.UserData;
     data.textPlacementMode = false;
     fig.UserData = data;
@@ -1601,16 +1565,13 @@ function addTextStrokesToCanvas(fig, textStrokes, x, y)
     xlims = get(data.ax, 'XLim');
     ylims = get(data.ax, 'YLim');
     
-    % Add text strokes to canvas strokes
     addedCount = 0;
     for i = 1:length(textStrokes)
         stroke = textStrokes{i};
         
-        % Clip strokes to canvas bounds
         stroke(:, 1) = max(xlims(1), min(xlims(2), stroke(:, 1)));
         stroke(:, 2) = max(ylims(1), min(ylims(2), stroke(:, 2)));
         
-        % Only add if stroke has at least 2 points
         if size(stroke, 1) >= 2
             data.strokes{end+1} = stroke;
             addedCount = addedCount + 1;
@@ -1619,7 +1580,6 @@ function addTextStrokesToCanvas(fig, textStrokes, x, y)
     
     fig.UserData = data;
     
-    % Redraw canvas
     redrawCanvas(fig);
     updateStrokeCounter(fig, length(data.strokes));
     
@@ -1637,9 +1597,8 @@ function loadPaper(src, ~)
     disp('Loading paper (moving Y until sensor stops detecting - like homing)...');
     loadSpeed = 40;
     
-    % Move Y until light sensor stops detecting paper (reflect < 30) - like homing
-    data.motorY.limitValue = 0;  % Run indefinitely
-    data.motorY.power = -loadSpeed * data.yDirection;  % Move toward sensor
+    data.motorY.limitValue = 0; 
+    data.motorY.power = -loadSpeed * data.yDirection;  
     data.motorY.start();
     
     while data.lightSensor.value >= 30
@@ -1663,9 +1622,8 @@ function unloadPaper(src, ~)
     disp('Unloading paper (moving Y until sensor detects paper)...');
     unloadSpeed = 40;
     
-    % Move Y until light sensor detects paper (reflect >= 30) - opposite of load
     data.motorY.limitValue = 360*7;  % Run indefinitely
-    data.motorY.power = unloadSpeed * data.yDirection;  % Move away from sensor
+    data.motorY.power = unloadSpeed * data.yDirection;  
     data.motorY.start();
     data.motorY.waitFor();
     data.motorY.stop();
